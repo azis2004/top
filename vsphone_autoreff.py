@@ -32,8 +32,8 @@ ACCESS_KEY = "PS9jcJCkqIYi79PnOzXoEFDrPxsfXOXB"  # GANTI
 SECRET_KEY = "iugve27EONOZ9Hl1JvvYEWKa"          # GANTI
 HOST       = "api.vsphone.com"                   # JANGAN DIGANTI KECUALI ADA PERINTAH
 PAD_CODES  = [
-    "APP5BT4QV9UVNUAW",  # GANTI SESUAI PUNYA KAMU
     "APP5AV4BTI6XWCGG",  # GANTI SESUAI PUNYA KAMU
+    "APP5BT4QV9UVNUAW",  # GANTI SESUAI PUNYA KAMU
 ]
 
 ACCOUNTS_TARGET = 5  # BERAPA BANYAK AKUN YANG INGIN DIBUAT
@@ -166,7 +166,7 @@ def ocr_region(img, x, y, w, h, cfg="--psm 6"):
 
 def get_spins_left(pad_code):
     screen = get_screenshot(pad_code)
-    if screen is None: return 1
+    if screen 1
     text = ocr_region(screen, 250, 580, 200, 100, "--psm 7")
     m = re.search(r'(\d+)\s*left', text, re.IGNORECASE)
     return int(m.group(1)) if m else 0
@@ -201,11 +201,12 @@ def solve_captcha(pad_code):
         loginfo(f"Captcha: gap={gap_x}, swipe={distance}")
 
         cur = SLIDER_X
-        for i in range t = i / 7
+        for i in range(8):
+            t = i / 7
             ease = 3*t*t - 2*t*t*t
             step = int(ease * distance)
             next_x = cur + step
-            swipe(pad_code, cur, SLIDER_Y, next_x, SLIDER_Y, int(60 + 50 * abs(0.5 - t)))
+            swipe(pad_code, cur, SLIDER_Y, next_Y, int(60 + 50 * abs(0.5 - t)))
             cur = next_x
         time.sleep(2.5)
 
@@ -242,8 +243,8 @@ def get_temp_email():
     return email, {"user": user, "domain": domain}
 
 def check_inbox(meta, timeout=60):
-    user, dom = meta["user"], meta["domain"]
-    start = time.time()    while time.time() - start < timeout:
+    user, dom = meta["user"], meta["domain"]    start = time.time()
+    while time.time() - start < timeout:
         try:
             r = _sess.get(f"{_KUKULU_BASE}/inbox.php", params={"address": user, "domain": dom}, timeout=5)
             soup = BeautifulSoup(r.text, "html.parser")
@@ -256,7 +257,7 @@ def check_inbox(meta, timeout=60):
                 txt = body.get_text(" ", strip=True) if body else r2.text
                 return txt
         except: pass
-        time.sleep)
+        time.sleep(4)
     return None
 
 def extract_otp(txt):
@@ -291,8 +292,8 @@ def _rand_num(n): return ''.join(random.choices(string.digits, k=n))
 # ============================================================
 #  CORE: REGISTER + SPIN
 # ============================================================
-def register_and_spin(pad_code, pkg, reff_code=""):
-    clear_app(pad_code, pkg)    open_app(pad_code, pkg)
+def register_and_spin(pad_code, pkg, reff_code=""):    clear_app(pad_code, pkg)
+    open_app(pad_code, pkg)
     time.sleep(5)
 
     # Step 1: Email
@@ -340,8 +341,8 @@ def register_and_spin(pad_code, pkg, reff_code=""):
     time.sleep(2)
     tap(pad_code, *UI["ok"])
     time.sleep(2)
-    tap(pad_code, *UI["spin"])
-    time.sleep(5)    tap(pad_code, 353, 800)  # close result
+    tap(pad_code, *UI["spin"])    time.sleep(5)
+    tap(pad_code, 353, 800)  # close result
     time.sleep(1)
 
     # Save
@@ -389,5 +390,4 @@ if __name__ == "__main__":
         loginfo(f"🔄 Buat akun ke-{i+1} di pad {pad}")
         register_and_spin(pad, pkg, master_code)
         time.sleep(10)
-
     loginfo("🎉 Selesai. Akun tersimpan di akun_topnod.json")
