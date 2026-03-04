@@ -33,8 +33,8 @@ ACCESS_KEY = "PS9jcJCkqIYi79PnOzXoEFDrPxsfXOXB"  # GANTI
 SECRET_KEY = "iugve27EONOZ9Hl1JvvYEWKa"          # GANTI
 HOST       = "api.vsphone.com"
 PAD_CODES  = [
-    "AC11010000031",
-    "AC11010000032",
+    "APP5AV4BTI6XWCGG",
+    "APP5BT4QV9UVNUAW",
 ]
 
 ACCOUNTS_TARGET = 5
@@ -47,7 +47,8 @@ OUTPUT_FILE = "akun_topnod.json"
 LOG_FILE    = "autoreff.log"
 
 # ============================================================
-#  LOGGING — Console + File# ============================================================
+#  LOGGING — Console + File
+# ============================================================
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)-5s %(message)s",
@@ -96,7 +97,8 @@ def _sign_request(method, path, params=None, body=None):
     if params:
         sorted_params = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
         canonical_parts.append(sorted_params)
-    if body:        body_str = json.dumps(body, separators=(',', ':'), sort_keys=True)
+    if body:
+        body_str = json.dumps(body, separators=(',', ':'), sort_keys=True)
         canonical_parts.append(body_str)
 
     canonical = "\n".join(canonical_parts)
@@ -145,7 +147,8 @@ def get_package_name(pad_code):
     time.sleep(2)
     if res:
         m = re.search(r'package:([\w.]+)', str(res))
-        return m.group(1) if m else "com.topnod.app"    return "com.topnod.app"
+        return m.group(1) if m else "com.topnod.app"
+    return "com.topnod.app"
 
 def tap(pad_code, x, y):
     api("/vsphone/api/padApi/simulateTouch", {"padCode": pad_code, "x": x, "y": y, "eventType": 0})
@@ -174,7 +177,7 @@ def read_clipboard(pad_code):
 # ── Screenshot & OCR (fallback safe) ───────────────────────
 def get_screenshot(pad_code):
     res = api("/vsphone/api/padApi/getLongGenerateUrl", {"padCodes": [pad_code]})
-    if res:
+    if not res:
         return None
     try:
         url = res[0].get("url") if isinstance(res, list) else res.get("url")
@@ -194,7 +197,8 @@ def ocr_region(img, x, y, w, h, cfg="--psm 6"):
         crop = img[y:y+h, x:x+w]
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
         scaled = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-        _, th = cv2.threshold(scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)        return pytesseract.image_to_string(Image.fromarray(th), config=cfg).strip()
+        _, th = cv2.threshold(scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return pytesseract.image_to_string(Image.fromarray(th), config=cfg).strip()
     except Exception as e:
         logerr(f"OCR gagal: {e}")
         return ""
@@ -213,6 +217,11 @@ def auto_close_popup(pad_code):
     tap(pad_code, 360, 1400)  # 720p: ~bottom center
     time.sleep(1)
 
+# ── Password Generator ──────────────────────────────────────
+def gen_pass():
+    chars = string.ascii_letters + string.digits + "!@#$"
+    return ''.join(random.choices(chars, k=12))
+
 # ── Install APK
 @retry_on_failure(max_retries=3, delay=3)
 def install_apk(pad_code):
@@ -229,21 +238,17 @@ def install_apk(pad_code):
         raise
 
     # Step 2: Upload ke device via VSPHONE (simulasi push)
-    # Karena VSPHONE tidak punya direct upload, kita gunakan `adb shell` via asyncCmd
     api("/vsphone/api/padApi/asyncCmd", {
         "padCodes": [pad_code],
         "cmd": f"mkdir -p /sdcard/Download && echo 'APK downloaded' > /sdcard/Download/status.txt"
     })
     time.sleep(1)
 
-    # Simulasikan push via base64 (jika VSPHONE support) — alternatif: gunakan curl di device
-    # Jika tidak, pastikan APK sudah ada di device sebelumnya.
-    # Untuk demo, kita asumsikan APK sudah ada di /sdcard/Download/TopNod.apk
     # Cek keberadaan file
     res = api("/vsphone/api/padApi/asyncCmd", {"padCodes": [pad_code], "cmd": f"ls {APK_LOCAL}"})
     if not res or "TopNod.apk" not in str(res):
-        logwarn("APK tidak ditemukan di device — coba install via adb (manual) atau pastikan sudah diupload.")
-        # Fallback: gunakan pm install via URL (jika device online)        api("/vsphone/api/padApi/async", {
+        logwarn("APK tidak ditemukan di device — coba install via curl")
+        api("/vsphone/api/padApi/asyncCmd", {
             "padCodes": [pad_code],
             "cmd": f"curl -o {APK_LOCAL} {APK_URL} && pm install {APK_LOCAL}"
         })
@@ -288,11 +293,12 @@ def solve_captcha(pad_code):
         except Exception as e:
             logerr(f"Captcha detect error: {e}")
 
-        distance = gap_x -CE_X + random.randint(-4, 4)
+        distance = gap_x - SLIDER_X + random.randint(-4, 4)
         loginfo(f"Captcha attempt {attempt+1}: gap={gap_x}, swipe={distance}")
 
         cur = SLIDER_X
-        for i in range(8):            t = i / 7
+        for i in range(8):
+            t = i / 7
             ease = 3 * t * t - 2 * t * t * t
             step = int(ease * distance)
             next_x = cur + step
@@ -304,7 +310,7 @@ def solve_captcha(pad_code):
         screen2 = get_screenshot(pad_code)
         if screen2 is not None:
             try:
-                resized1 = cv2.resize(screen[BG_Y:BG_Y+BG_H, BG_X:BG_X+BG_W],100, 50))
+                resized1 = cv2.resize(screen[BG_Y:BG_Y+BG_H, BG_X:BG_X+BG_W], (100, 50))
                 resized2 = cv2.resize(screen2[BG_Y:BG_Y+BG_H, BG_X:BG_X+BG_W], (100, 50))
                 diff = cv2.absdiff(resized1, resized2)
                 if diff.mean() > 10:
@@ -326,7 +332,8 @@ def get_temp_email():
     user = ''.join(random.choices(string.ascii_lowercase, k=8)) + ''.join(random.choices(string.digits, k=4))
     domain = "boxfi.uk"
     try:
-        _sess.post(f"{_KUKULU_BASE}/create.php", data={"address": user, "domain": domain}, timeout=5    except Exception as e:
+        _sess.post(f"{_KUKULU_BASE}/create.php", data={"address": user, "domain": domain}, timeout=5)
+    except Exception as e:
         logerr(f"Create email gagal: {e}")
     email = f"{user}@{domain}"
     loginfo(f"📧 {email}")
@@ -341,7 +348,8 @@ def check_inbox(meta, timeout=60):
             soup = BeautifulSoup(r.text, "html.parser")
             link = soup.select_one("div.mail a[href]")
             if link:
-                href = link["href"]                if not href.startswith("http"):
+                href = link["href"]
+                if not href.startswith("http"):
                     href = f"{_KUKULU_BASE}/{href}"
                 r2 = _sess.get(href, timeout=5)
                 body = soup.find("div", class_=re.compile(r"body|content"))
@@ -361,6 +369,8 @@ def extract_otp(txt):
 # ============================================================
 #  UI COORDINATES — DETEKSI RESOLUSI
 # ============================================================
+pad_code_global = None
+
 def get_device_resolution(pad_code):
     """Coba deteksi resolusi via screenshot atau default ke 720p"""
     screen = get_screenshot(pad_code)
@@ -375,24 +385,22 @@ def scale_coord(x, y, ref_w=720, ref_h=1280):
     dev_w, dev_h = get_device_resolution(pad_code_global)
     return int(x * dev_w / ref_w), int(y * dev_h / ref_h)
 
-# Global untuk digunakan di scale_coord (hack sementara)
-pad_code_global = None
-
 UI_720 = {
-    "email": (353, 490),
-    "otp": (353, 660),
-    "reff": (353, 835),
-    "next": (353, 1007),
-    "pass": (353, 620),
+    "email"  : (353, 490),
+    "otp"    : (353, 660),
+    "reff"   : (353, 835),
+    "next"   : (353, 1007),
+    "pass"   : (353, 620),
     "confirm": (353, 880),
     "continue": (353, 1355),
-    "skip": (611, 140),
-    "event": (353, 210),
-    "spin": (353, 660),
-    "claim": (551, 1330),
-    "ok": (353, 955),    "invite": (563, 1023),
-    "copy": (463, 1152),
-    "close": (637, 670),
+    "skip"   : (611, 140),
+    "event"  : (353, 210),
+    "spin"   : (353, 660),
+    "claim"  : (551, 1330),
+    "ok"     : (353, 955),
+    "invite" : (563, 1023),
+    "copy"   : (463, 1152),
+    "close"  : (637, 670),
 }
 
 def get_ui_coords(pad_code):
@@ -439,6 +447,7 @@ def register_and_spin(pad_code, pkg, reff_code=""):
         input_text(pad_code, reff_code)
     tap(pad_code, *ui["next"])
     time.sleep(3)
+
     # Step 4: Password
     pwd = gen_pass()
     tap(pad_code, *ui["pass"])
@@ -483,17 +492,17 @@ def save_account(data):
 # ============================================================
 def get_reff_code(pad_code):
     loginfo("🔍 Mengambil referral code...")
-    
+
     # 1. Clipboard
     time.sleep(2)
     code = read_clipboard(pad_code)
     if code and len(code) >= 6:
-        loginfo(f"📋 Dapat dari clipboard: {code}")        return code
+        loginfo(f"📋 Dapat dari clipboard: {code}")
+        return code
 
     # 2. OCR di area Invite Code
     screen = get_screenshot(pad_code)
     if screen is not None:
-        # Area: Invite Code (adjust if needed)
         text = ocr_region(screen, 200, 1100, 400, 100, "--psm 7")
         loginfo(f"🔍 OCR text: '{text}'")
         m = re.search(r'[A-Z0-9]{6,12}', text)
@@ -532,12 +541,13 @@ if __name__ == "__main__":
     pkg = None
     master_code = None
 
-    # Install APK di semua pad (opsional: hanya di pad pertama)
+    # Install APK di semua pad
     for i, pad in enumerate(PAD_CODES):
         loginfo(f"📦 Siapkan device {pad}...")
         try:
             pkg = install_apk(pad)
-        except Exception as e:            logerr(f"Install gagal di {pad}, lanjut... ({e})")
+        except Exception as e:
+            logerr(f"Install gagal di {pad}, lanjut... ({e})")
             pkg = "com.topnod.app"  # fallback
 
     # Buat akun master
@@ -566,3 +576,4 @@ if __name__ == "__main__":
         time.sleep(10)
 
     loginfo(f"🎉 Selesai! Akun tersimpan di {OUTPUT_FILE}, log di {LOG_FILE}")
+        
